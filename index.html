@@ -139,6 +139,27 @@ body{font-family:var(--f-cond);-webkit-tap-highlight-color:transparent}
 body.has-player .screen:not(#s1){padding-bottom:calc(env(safe-area-inset-bottom,0px) + 112px)}
 body.has-player #s1 .inner{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 112px)}
 body.has-player .hint{bottom:calc(env(safe-area-inset-bottom,0px) + 112px)}
+
+.pl-min{width:32px;color:var(--muted)}
+.pl-min svg{width:18px;height:18px}
+.disc{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:41;width:58px;height:58px;border-radius:50%;
+  border:0;padding:0;cursor:pointer;display:grid;place-items:center;
+  background:radial-gradient(circle,var(--neon) 0 34%,#111 35% 37%,transparent 38%),repeating-radial-gradient(circle,#0d0d0a 0 2px,#1c1b12 2px 4px);
+  box-shadow:0 0 0 2px rgba(232,216,0,.55),0 6px 18px rgba(0,0,0,.6);
+  transform:scale(0);transition:transform .45s cubic-bezier(.2,1.5,.4,1)}
+.disc span{font-family:var(--f-display);font-size:.72rem;letter-spacing:.06em;color:var(--black);line-height:1}
+.disc:focus-visible{outline:2px solid var(--paper);outline-offset:3px}
+body.player-min .disc{transform:scale(1)}
+.disc .spin{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;animation:spin 3.2s linear infinite;animation-play-state:paused}
+.disc .spin::after{content:"";position:absolute;width:10px;height:3px;background:rgba(232,216,0,.7);top:9px;left:50%;transform:translateX(-50%);border-radius:2px}
+body.music-on .disc .spin{animation-play-state:running}
+@keyframes spin{to{transform:rotate(360deg)}}
+body.player-min .player{transform:translateY(140%);opacity:0;pointer-events:none}
+body.player-min .screen:not(#s1){padding-bottom:calc(env(safe-area-inset-bottom,0px) + 22px)}
+body.player-min #s1 .inner{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 24px)}
+body.player-min .hint{bottom:calc(env(safe-area-inset-bottom,0px) + 22px);right:90px}
+body.player-min .s2foot{padding-right:74px}
+.s2foot .btn{white-space:nowrap;font-size:clamp(1.2rem,6vw,1.6rem)}
 #s2{overflow-y:auto}#s2 .inner{height:auto;min-height:100%}
 .beer{height:1.55em;width:auto;margin:-.35em -.1em -.35em .15em;filter:drop-shadow(2px 2px 0 rgba(0,0,0,.85))}
 
@@ -236,11 +257,13 @@ body.has-player .hint{bottom:calc(env(safe-area-inset-bottom,0px) + 112px)}
       <button class="pl-btn" id="plPrev" aria-label="Voltar"><svg viewBox="0 0 24 24"><path d="M6 5h2.5v14H6zM20 5v14L9.5 12z"/></svg></button>
       <button class="pl-btn pl-play" id="plPlay" aria-label="Pausar"><svg viewBox="0 0 24 24" id="plIcon"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg></button>
       <button class="pl-btn" id="plNext" aria-label="Próxima"><svg viewBox="0 0 24 24"><path d="M15.5 5H18v14h-2.5zM4 5l10.5 7L4 19z"/></svg></button>
+      <button class="pl-btn pl-min" id="plMin" aria-label="Recolher player"><svg viewBox="0 0 24 24"><path d="M5 8.5l7 7 7-7-1.8-1.8L12 11.9 6.8 6.7z"/></svg></button>
     </div>
   </div>
   <div class="pl-prog"><span id="plCur">0:00</span><div class="pl-bar" id="plBar"><div class="pl-fill" id="plFill"></div></div><span id="plDur">0:00</span></div>
 </div>
 
+<button class="disc" id="plDisc" aria-label="Abrir player" hidden><span class="spin"><span>CDC</span></span></button>
 <script>
 (()=>{
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -292,7 +315,7 @@ const $=id=>document.getElementById(id);
 const player=$('player');let idx=0,started=false;
 const PLAY='<path d="M7 4l13 8-13 8z"/>',PAUSE='<path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/>';
 const fmt=s=>isFinite(s)?Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'):'0:00';
-function ui(){const p=!audio.paused;player.classList.toggle('playing',p);$('plIcon').innerHTML=p?PAUSE:PLAY;$('plPlay').setAttribute('aria-label',p?'Pausar':'Tocar')}
+function ui(){const p=!audio.paused;document.body.classList.toggle('music-on',p);player.classList.toggle('playing',p);$('plIcon').innerHTML=p?PAUSE:PLAY;$('plPlay').setAttribute('aria-label',p?'Pausar':'Tocar')}
 function fadeIn(){audio.volume=0;let v=0;const iv=setInterval(()=>{v=Math.min(1,v+.05);try{audio.volume=v}catch(e){}if(v>=1)clearInterval(iv)},60)}
 function load(i,play){
   idx=(i+TRACKS.length)%TRACKS.length;audio.src=TRACKS[idx].src;audio.currentTime=0;
@@ -311,7 +334,9 @@ const bar=$('plBar');
 function seek(e){const r=bar.getBoundingClientRect();if(audio.duration)audio.currentTime=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*audio.duration}
 bar.addEventListener('pointerdown',e=>{seek(e);bar.setPointerCapture(e.pointerId);bar.onpointermove=seek});
 bar.addEventListener('pointerup',()=>{bar.onpointermove=null});
-function startMusic(){if(started)return;started=true;player.hidden=false;document.body.classList.add('has-player');
+$('plMin').onclick=()=>{document.body.classList.add('player-min');setTimeout(()=>$('plDisc').focus({preventScroll:true}),50)};
+$('plDisc').onclick=()=>{document.body.classList.remove('player-min')};
+function startMusic(){$('plDisc').hidden=false;if(started)return;started=true;player.hidden=false;document.body.classList.add('has-player');
   requestAnimationFrame(()=>requestAnimationFrame(()=>player.classList.add('show')));load(0,true)}
 
 /* telas */
@@ -335,7 +360,7 @@ document.getElementById('open').onclick=()=>{
   const ps=[...document.querySelectorAll('#msg p')],ft=document.getElementById('s2foot');
   ps.forEach(p=>p.classList.remove('in'));ft.classList.remove('in');
   ps.forEach((p,i)=>setTimeout(()=>p.classList.add('in'),500+i*1300));
-  setTimeout(()=>ft.classList.add('in'),500+ps.length*1300);
+  setTimeout(()=>{ft.classList.add('in');if(started)document.body.classList.add('player-min')},500+ps.length*1300);
 };
 document.getElementById('toast').onclick=()=>{
   go(2);
